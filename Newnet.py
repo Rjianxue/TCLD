@@ -62,57 +62,6 @@ def focal_loss_calc(y_true, y_probs):
     return tf.reduce_sum(loss)
 
 
-def multi_label_asymmtric_loss_tf(labels, logits, gamma_pos=1, gamma_neg=4, clip=0.05, eps=1e-8, ):
-    # 计算概率 caalculating probabilities
-    logits_sigmoid = tf.nn.sigmoid(logits)
-    logits_sigmoid_pos = logits_sigmoid
-    logits_sigmoid_neg = 1 - logits_sigmoid_pos
-
-    # asymmetric clipping
-    if clip is not None and clip > 0:
-        # logits_sigmoid_neg + clip 有可能大于1
-        logits_sigmoid_neg = tf.clip_by_value((logits_sigmoid_neg + clip), clip_value_min=0, clip_value_max=1.0)
-
-    # basic cross entropy
-    # logits_sigmoid_pos的取值范围是0-1，因此可以直接可以取对数log，不会溢出
-    loss_pos = labels * tf.math.log(tf.clip_by_value(logits_sigmoid_pos, clip_value_min=eps,clip_value_max=1.0))
-    loss_neg = (1 - labels) * tf.math.log(tf.clip_by_value(logits_sigmoid_neg, clip_value_min=eps,clip_value_max=1.0))
-    loss = loss_pos + loss_neg
-
-    # Asymmetric focusing
-
-    if gamma_neg > 0 or gamma_pos > 0:
-        # with tf.GradientTape() as tape:
-        #     with tape.stop_recording():
-        #         pass
-        #     pass
-        pt0 = logits_sigmoid_pos * labels
-        pt1 = logits_sigmoid_neg * (1 - labels)
-        pt = pt0 + pt1
-
-        one_sided_gamma = gamma_pos * labels + gamma_neg * (1 - labels)
-        one_sided_w = tf.pow(1 - pt, one_sided_gamma)
-        one_sided_w_no_gradient = tf.stop_gradient([pt0, pt1, pt, one_sided_gamma, one_sided_w])
-        loss *= one_sided_w_no_gradient
-
-    return -tf.reduce_sum(loss)
-
-def dice_loss(label, logits, n_classes=21, smooth=1.e-5):
-    epsilon = 1.e-6
-    alpha = 2.0   # 这个是dice coe的系数，见下边的解释
-    label = tf.cast(label, tf.int32)
-    y_true = tf.one_hot(label, n_classes)
-    softmax_prob = tf.nn.softmax(logits)
-    # print("{}".format(softmax_prob.numpy()))
-    y_pred = tf.clip_by_value(softmax_prob, epsilon, 1. - epsilon)
-
-    y_pred_mask = tf.multiply(y_pred, y_true)
-    common = tf.multiply((tf.ones_like(y_true) - y_pred_mask), y_pred_mask)
-    nominator = tf.multiply(tf.multiply(common, y_true), alpha) + smooth
-    denominator = common + y_true + smooth
-    dice_coe = tf.divide(nominator, denominator)
-    return tf.reduce_mean(tf.reduce_max(1 - dice_coe, axis=-1))
-
 class MultiHeadSelfAttention(layers.Layer):
     def __init__(self, embed_dim=32, num_heads=8, **kwargs):
         super(MultiHeadSelfAttention, self).__init__()
