@@ -249,11 +249,11 @@ test.append(threshold)
 
 modelDir = 'albtion_weight'
 
-ed = 128
+ed = 192
 ps = 5
-fd = 128
-dp = 0.6
-lr = 0.001
+fd = 192
+dp = 0.5
+lr = 0.0015
 
 para = {'embedding_dimension': ed, 'pool_size': ps, 'fully_dimension': fd,
             'drop_out': dp, 'learning_rate': lr}
